@@ -1,6 +1,6 @@
 [package]
 name = "ps-cache-warmer"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Sitemap-driven Varnish cache warmer for the Cyberial PrestaShop fleet"
 license = "MIT"
