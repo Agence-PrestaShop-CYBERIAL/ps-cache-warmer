@@ -34,6 +34,7 @@ use tokio::time::{sleep_until, Instant};
 #[derive(Parser, Debug)]
 #[command(
     name = "ps-cache-warmer",
+    version,
     about = "Sitemap-driven Varnish cache warmer (local-only, rate-limited)"
 )]
 struct Args {
