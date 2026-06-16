@@ -1,0 +1,33 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install musl target
+        run: |
+          rustup target add x86_64-unknown-linux-musl
+          sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Build static binary
+        run: cargo build --release --target x86_64-unknown-linux-musl
+
+      - name: Package
+        run: |
+          tar -C target/x86_64-unknown-linux-musl/release \
+            -czf ps-cache-warmer-linux-amd64.tar.gz ps-cache-warmer
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ps-cache-warmer-linux-amd64.tar.gz

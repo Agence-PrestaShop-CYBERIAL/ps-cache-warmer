@@ -1,0 +1,28 @@
+[package]
+name = "ps-cache-warmer"
+version = "0.1.0"
+edition = "2021"
+description = "Sitemap-driven Varnish cache warmer for the Cyberial PrestaShop fleet"
+license = "MIT"
+repository = "https://github.com/Agence-PrestaShop-CYBERIAL/ps-cache-warmer"
+
+[[bin]]
+name = "ps-cache-warmer"
+path = "src/main.rs"
+
+[dependencies]
+# reqwest with default-features off: we only ever speak plain HTTP to a local
+# Varnish (127.0.0.1:6081), so no TLS stack is pulled in. Crucially, NOT
+# enabling the "gzip"/"brotli"/"deflate" features means reqwest does NOT inject
+# its own Accept-Encoding nor auto-decode — our hand-set Accept-Encoding (br/gzip)
+# reaches Varnish untouched, which is what the VCL hashes the cache key on.
+reqwest = { version = "0.12", default-features = false, features = [] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+quick-xml = "0.36"
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
