@@ -216,10 +216,11 @@ async fn main() -> Result<()> {
 
     let mut handles = Vec::new();
     'outer: for path in pages {
-        for enc in encodings.iter().cloned() {
+        for enc in encodings.iter() {
             if abort.load(Ordering::Relaxed) {
                 break 'outer;
             }
+            let enc = enc.clone();
             limiter.acquire().await;
             let permit = sem.clone().acquire_owned().await.unwrap();
             let client = client.clone();
