@@ -62,6 +62,14 @@ struct Args {
     #[arg(long, default_value_t = 0)]
     max: usize,
 
+    /// Warm paths from this newline-delimited file (popularity order) instead
+    /// of the sitemap. Full URLs or host-relative paths are both accepted;
+    /// blank lines and '#' comments are ignored. Falls back to the sitemap if
+    /// the file is missing or yields no warmable URL — so a freshly deployed
+    /// host with no traffic history still gets a full warm.
+    #[arg(long)]
+    urls_from: Option<String>,
+
     /// Per-request timeout, in seconds.
     #[arg(long, default_value_t = 30)]
     timeout: u64,
@@ -169,8 +177,23 @@ async fn main() -> Result<()> {
         encodings.join("+")
     );
 
-    // ---- collect page URLs from the sitemap tree ------------------------
-    let pages = collect_pages(&client, &args).await?;
+    // ---- collect page URLs (popularity list, else sitemap tree) ---------
+    let pages = match &args.urls_from {
+        Some(path) => {
+            let from_file = read_urls_file(path, &args);
+            if from_file.is_empty() {
+                eprintln!(
+                    "[warm] --urls-from {} missing/empty — falling back to sitemap",
+                    path
+                );
+                collect_pages(&client, &args).await?
+            } else {
+                eprintln!("[warm] {} URLs from {}", from_file.len(), path);
+                from_file
+            }
+        }
+        None => collect_pages(&client, &args).await?,
+    };
     let total = pages.len();
     if total == 0 {
         eprintln!("[warm] no page URLs found in sitemap — nothing to do");
@@ -286,6 +309,34 @@ async fn collect_pages(client: &reqwest::Client, args: &Args) -> Result<Vec<Stri
         }
     }
     Ok(pages)
+}
+
+/// Read a newline-delimited file of paths/URLs (popularity order preserved),
+/// normalize each to a host-relative path, keep only warmable ones, dedupe, and
+/// apply the `--max` cap. Returns an empty Vec on any read error (the caller
+/// then falls back to the sitemap).
+fn read_urls_file(path: &str, args: &Args) -> Vec<String> {
+    let content = match std::fs::read_to_string(path) {
+        Ok(c) => c,
+        Err(_) => return Vec::new(),
+    };
+    let mut pages: Vec<String> = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for line in content.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if let Some(p) = to_local_path(line) {
+            if is_warmable(&p) && seen.insert(p.clone()) {
+                pages.push(p);
+                if args.max > 0 && pages.len() >= args.max {
+                    break;
+                }
+            }
+        }
+    }
+    pages
 }
 
 async fn fetch_text(client: &reqwest::Client, url: &str) -> Result<String> {

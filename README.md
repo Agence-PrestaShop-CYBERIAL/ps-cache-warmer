@@ -54,7 +54,23 @@ Key flags:
 | `--concurrency` | `4` | Max in-flight requests |
 | `--encodings` | `br,gzip` | Accept-Encoding variants warmed per URL |
 | `--max` | `0` | Cap on page count (0 = all) |
+| `--urls-from` | _(none)_ | Warm paths from a newline file (popularity order) instead of the sitemap; falls back to sitemap if missing/empty |
 | `--max-consecutive-errors` | `50` | Abort threshold protecting a sick backend |
+
+### Popularity-driven warming (`--urls-from`)
+
+Warming the full sitemap nightly renders every long-tail page, including those
+nobody visits. To warm only what gets traffic, feed a ranked path list:
+
+```bash
+ps-cache-warmer --domain funecobikes.com --urls-from /run/ps-warm/funecobikes.com.urls --max 1000
+```
+
+The list is generated from a host-aware varnishncsa log by `ps-warm-toplist`
+(deployed by `playbooks/install_cache_warmer.yml`). One path per line, most
+popular first; full URLs or host-relative paths both work. If the file is
+missing or empty (e.g. a freshly deployed host with no traffic history yet) the
+warmer falls back to a full sitemap walk.
 
 It exits non-zero if it aborted on errors. A site whose sitemap is missing or
 empty is a clean no-op (it logs and exits 0). Deployment (cron + binary) lives
